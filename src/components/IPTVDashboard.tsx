@@ -381,6 +381,68 @@ export default function IPTVDashboard() {
     setEditingPlaylistId(null);
   };
 
+  // Client-side local parser fallback for GitHub Pages compatibility and server outages
+  const parseM3UContentClient = (text: string): IPlaylistItem[] => {
+    const lines = text.split(/\r?\n/);
+    const parsedItems: IPlaylistItem[] = [];
+    let currentItem: Partial<IPlaylistItem> = {};
+    let idCounter = 1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      if (line.startsWith("#EXTINF:")) {
+        currentItem = {};
+        const commaIdx = line.lastIndexOf(",");
+        let channelName = "Bilinmeyen Kanal";
+        if (commaIdx !== -1) {
+          channelName = line.substring(commaIdx + 1).trim();
+        }
+
+        const logoMatch = line.match(/tvg-logo="([^"]+)"/) || line.match(/logo="([^"]+)"/);
+        const logo = logoMatch ? logoMatch[1] : "";
+
+        const groupMatch = line.match(/group-title="([^"]+)"/) || line.match(/category="([^"]+)"/);
+        const group = groupMatch ? groupMatch[1] : "Genel";
+
+        currentItem.name = channelName;
+        currentItem.logo = logo;
+        currentItem.group = group;
+        currentItem.id = `ch-${idCounter++}-${Date.now()}`;
+      } else if (line.startsWith("#EXTGRP:")) {
+        const groupValue = line.replace("#EXTGRP:", "").trim();
+        if (currentItem && groupValue) {
+          currentItem.group = groupValue;
+        }
+      } else if (line.startsWith("#")) {
+        continue;
+      } else {
+        if (line.match(/^https?:\/\//i) || line.includes("://") || line.includes("/")) {
+          if (!currentItem.name) {
+            let fallbackName = `Kanal ${idCounter}`;
+            try {
+              const u = new URL(line);
+              const pathname = u.pathname;
+              const lastPart = pathname.substring(pathname.lastIndexOf('/') + 1);
+              if (lastPart) {
+                fallbackName = decodeURIComponent(lastPart.replace(/\.[^/.]+$/, "")).trim();
+              }
+            } catch (e) {}
+            currentItem.name = fallbackName || `Yayın ${idCounter}`;
+            currentItem.logo = "";
+            currentItem.group = "Genel";
+            currentItem.id = `ch-${idCounter++}-${Date.now()}`;
+          }
+          currentItem.url = line;
+          parsedItems.push(currentItem as IPlaylistItem);
+          currentItem = {};
+        }
+      }
+    }
+    return parsedItems;
+  };
+
   // Fetch playlist items from API proxy
   const fetchPlaylist = async (urlToFetch: string) => {
     setIsLoading(true);
@@ -388,47 +450,70 @@ export default function IPTVDashboard() {
     setIsUsingFallback(false);
     setFallbackErrorNote("");
     try {
-      let response;
       if (urlToFetch.startsWith("local://")) {
         const fileId = urlToFetch.replace("local://", "");
         const rawText = localStorage.getItem(`iptv_playlist_text_${fileId}`) || "";
         if (!rawText) {
           throw new Error("Yerel yüklenen liste içeriği boş veya silinmiş.");
         }
-        response = await fetch("/api/parse-m3u-text", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ text: rawText }),
-        });
-      } else {
-        const parsedUrl = `/api/parse-m3u?url=${encodeURIComponent(urlToFetch)}`;
-        response = await fetch(parsedUrl);
+        // Direct browser client-side parse (offline friendly & static site safe)
+        const clientItems = parseM3UContentClient(rawText);
+        if (clientItems.length === 0) {
+          throw new Error("Yerel listede geçerli bir kanal veya yayın adresi bulunamadı.");
+        }
+        setItems(clientItems);
+        // Auto play the first item in the first slot if empty
+        if (clientItems.length > 0 && !screenSlots[0].item) {
+          setScreenSlots(prev => prev.map((slot, i) => i === 0 ? { ...slot, item: clientItems[0] } : slot));
+        }
+        return;
       }
 
-      if (!response.ok) {
-        try {
-          const detail = await response.json();
-          throw new Error(detail.error || `Kanal listesi çekilemedi (${response.status})`);
-        } catch {
-          throw new Error(`Kanal listesi çekilemedi (${response.status})`);
-        }
-      }
-      const data = await response.json();
-      if (data.success && Array.isArray(data.items)) {
-        setItems(data.items);
-        setIsUsingFallback(!!data.isFallback);
-        if (data.errorNote) {
-          setFallbackErrorNote(data.errorNote);
-        }
+      // Remote file parsing branch
+      let fetchedItems: IPlaylistItem[] = [];
+
+      try {
+        // Try calling the Express Server proxy backend first (for CORS bypass & fallback logic)
+        const parsedUrl = `/api/parse-m3u?url=${encodeURIComponent(urlToFetch)}`;
+        const response = await fetch(parsedUrl);
         
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.items)) {
+            fetchedItems = data.items;
+            setIsUsingFallback(!!data.isFallback);
+            if (data.errorNote) {
+              setFallbackErrorNote(data.errorNote);
+            }
+          } else {
+            throw new Error(data.error || "Playlist parse edilmedi.");
+          }
+        } else {
+          throw new Error(`Server status: ${response.status}`);
+        }
+      } catch (serverErr) {
+        console.warn("Express server API failed or is not available. Falling back to client-side direct fetch...", serverErr);
+        // Fallback: If hosted on GitHub Pages (static site) or server is down/unreachable, fetch directly from browser!
+        const directResponse = await fetch(urlToFetch);
+        if (!directResponse.ok) {
+          throw new Error(`Yayın listesi doğrudan indirilemedi (${directResponse.status}). CORS engellemesi veya geçersiz link olabilir. Lütfen .m3u dosyasını indirin ve doğrudan siteye yükleyin.`);
+        }
+        const text = await directResponse.text();
+        const clientItems = parseM3UContentClient(text);
+        if (clientItems.length === 0) {
+          throw new Error("M3U dosyası içerisinde geçerli bir yayın bağlantısı bulunamadı.");
+        }
+        fetchedItems = clientItems;
+      }
+
+      if (fetchedItems.length > 0) {
+        setItems(fetchedItems);
         // Auto play the first item in the first slot if empty
-        if (data.items.length > 0 && !screenSlots[0].item) {
-          setScreenSlots(prev => prev.map((slot, i) => i === 0 ? { ...slot, item: data.items[0] } : slot));
+        if (fetchedItems.length > 0 && !screenSlots[0].item) {
+          setScreenSlots(prev => prev.map((slot, i) => i === 0 ? { ...slot, item: fetchedItems[0] } : slot));
         }
       } else {
-        throw new Error(data.error || "Playlist parse edilmedi.");
+        throw new Error("Kanal listesi boş veya ayrıştırılamadı.");
       }
     } catch (err: any) {
       console.error("Fetch list error", err);
