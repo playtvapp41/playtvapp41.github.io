@@ -24,7 +24,9 @@ jobs:
           cache: npm
 
       - name: Bagimliliklari Yukle 📦
-        run: npm install
+        run: |
+          rm -f package-lock.json
+          npm install
 
       - name: Projeyi Derle (Build) 🏗️
         run: npm run build
