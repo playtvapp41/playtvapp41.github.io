@@ -27,6 +27,7 @@ jobs:
         run: |
           rm -f package-lock.json
           npm install
+          npm install --save-dev @tailwindcss/oxide-linux-x64
 
       - name: Projeyi Derle (Build) 🏗️
         run: npm run build
