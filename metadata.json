@@ -1,0 +1,6 @@
+{
+  "name": "IPTV Player",
+  "description": "Gelişmiş çoklu ekran desteği, düşük gecikmeli yayın optimizasyonu, dikey ve yatay ekran yerleşimi, anlık geri sarma ve favori kanal özellikleri sunan modern IPTV ve film oynatma platformu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
