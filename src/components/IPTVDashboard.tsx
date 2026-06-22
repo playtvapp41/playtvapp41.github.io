@@ -435,7 +435,10 @@ export default function IPTVDashboard() {
             currentItem.id = `ch-${idCounter++}-${Date.now()}`;
           }
           currentItem.url = line;
-          parsedItems.push(currentItem as IPlaylistItem);
+          const isSonEklenenler = currentItem.group && currentItem.group.toLowerCase().trim() === "son eklenenler";
+          if (!isSonEklenenler) {
+            parsedItems.push(currentItem as IPlaylistItem);
+          }
           currentItem = {};
         }
       }

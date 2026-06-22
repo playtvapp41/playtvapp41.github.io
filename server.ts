@@ -98,7 +98,10 @@ async function startServer() {
             currentItem.id = `ch-${idCounter++}`;
           }
           currentItem.url = line;
-          items.push(currentItem as any);
+          const isSonEklenenler = currentItem.group && currentItem.group.toLowerCase().trim() === "son eklenenler";
+          if (!isSonEklenenler) {
+            items.push(currentItem as any);
+          }
           currentItem = {};
         }
       }
