@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: './playtvapp41.github.io/',
+    base: '/play/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
