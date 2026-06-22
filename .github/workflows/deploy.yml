@@ -25,9 +25,9 @@ jobs:
 
       - name: Bagimliliklari Yukle 📦
         run: |
-          rm -f package-lock.json
+          rm -rf node_modules package-lock.json
           npm install
-          npm install --save-dev @tailwindcss/oxide-linux-x64
+          npm install --save-dev @tailwindcss/oxide-linux-x64-gnu
 
       - name: Projeyi Derle (Build) 🏗️
         run: npm run build
