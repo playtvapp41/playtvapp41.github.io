@@ -20,14 +20,13 @@ jobs:
       - name: Node.js Kurulumu ⚙️
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: npm
 
       - name: Bagimliliklari Yukle 📦
         run: |
           rm -rf node_modules package-lock.json
           npm install
-          npm install --save-dev @tailwindcss/oxide-linux-x64-gnu
 
       - name: Projeyi Derle (Build) 🏗️
         run: npm run build
