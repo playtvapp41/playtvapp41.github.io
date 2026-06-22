@@ -92,85 +92,6 @@ export default function VideoPlayer({
   });
 
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
-  const [showRecommendedMovies, setShowRecommendedMovies] = useState<boolean>(false);
-
-  const recommendedMovies = useMemo(() => {
-    let movies: IPlaylistItem[] = [];
-    if (allPlaylistItems && allPlaylistItems.length > 0) {
-      movies = allPlaylistItems.filter((m) => {
-        const nameLower = m.name.toLowerCase();
-        const groupLower = (m.group || "").toLowerCase();
-        return (
-          nameLower.includes("film") ||
-          nameLower.includes("movie") ||
-          nameLower.includes("cinema") ||
-          nameLower.includes("sinema") ||
-          groupLower.includes("film") ||
-          groupLower.includes("movie") ||
-          groupLower.includes("cinema") ||
-          groupLower.includes("sinema") ||
-          groupLower.includes("vod")
-        );
-      });
-    }
-
-    const fallbackMovies: IPlaylistItem[] = [
-      {
-        id: "rec_sintel",
-        name: "Sintel (Animasyon & Macera)",
-        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/d/df/Sintel_poster.jpg",
-        group: "Önerilen Sinema"
-      },
-      {
-        id: "rec_bbb",
-        name: "Big Buck Bunny (Komedi & Eğlence)",
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Big_Buck_Bunny_Poster_300dpi.png",
-        group: "Önerilen Sinema"
-      },
-      {
-        id: "rec_tears",
-        name: "Tears of Steel (Bilim Kurgu & CGI)",
-        url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/e/ee/Tears_of_steel_poster_300_dpi.jpg",
-        group: "Önerilen Sinema"
-      },
-      {
-        id: "rec_cosmos",
-        name: "Cosmos Laundry (Sıra Dışı & Macera)",
-        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/e/ee/Cosmos_Laundry_Project_-_First_Poster.jpg",
-        group: "Önerilen Sinema"
-      },
-      {
-        id: "rec_elephants",
-        name: "Elephants Dream (Sürreal Klasik)",
-        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/d/db/Elephants_dream_poster_300dpi.jpg",
-        group: "Önerilen Sinema"
-      },
-      {
-        id: "rec_nasa",
-        name: "NASA HD TV Canlı Keşif",
-        url: "https://ntv1.nasatv.net/hls/ntv1.m3u8",
-        logo: "https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg",
-        group: "Önerilen Popüler"
-      }
-    ];
-
-    if (movies.length < 6) {
-      const seen = new Set(movies.map(m => m.url));
-      for (const fallback of fallbackMovies) {
-        if (!seen.has(fallback.url)) {
-          movies.push(fallback);
-          seen.add(fallback.url);
-        }
-      }
-    }
-
-    return movies.slice(0, 12);
-  }, [allPlaylistItems]);
 
   // State to manage automatic safe proxy loading on CORS / mixed-content errors
   const [useProxy, setUseProxy] = useState<boolean>(false);
@@ -1010,128 +931,11 @@ export default function VideoPlayer({
                     Anladım
                   </button>
                 </div>
+
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* RECOMMENDED MOVIES OVERLAY */}
-        <AnimatePresence>
-          {showRecommendedMovies && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowRecommendedMovies(false);
-              }}
-              className="absolute inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 select-none pointer-events-auto"
-            >
-              <motion.div
-                initial={{ scale: 0.9, y: 15 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.9, y: 15 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-zinc-950/95 border border-white/10 rounded-2xl w-full max-w-lg p-5 shadow-2xl relative text-left overflow-hidden flex flex-col max-h-[85%]"
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4.5 w-4.5 text-amber-500 animate-pulse" />
-                    <div>
-                      <h3 className="font-bold text-white text-xs sm:text-sm tracking-wide">Önerilen Filmler</h3>
-                      <p className="text-[10px] text-white/40 mt-0.5">Sizin için seçilen özel yayınlar ve sinema yapımları</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowRecommendedMovies(false)}
-                    className="bg-white/5 hover:bg-white/10 text-white/50 hover:text-white h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Grid list of movies */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto pr-1 flex-1 py-1 scrollbar-thin">
-                  {recommendedMovies.map((movie) => {
-                    const isPlayingThis = item.url === movie.url;
-                    return (
-                      <button
-                        key={movie.id}
-                        onClick={() => {
-                          if (onPlayItem) {
-                            onPlayItem(movie);
-                          }
-                          setShowRecommendedMovies(false);
-                        }}
-                        className={`group relative flex flex-col text-left rounded-xl overflow-hidden bg-white/[0.02] border transition-all hover:scale-102 cursor-pointer duration-300 ${
-                          isPlayingThis
-                            ? "border-orange-500/80 bg-orange-950/20 shadow-[0_0_15px_rgba(234,88,12,0.25)]"
-                            : "border-white/5 hover:border-white/15 hover:bg-white/[0.05]"
-                        }`}
-                      >
-                        {/* Film Image/Logo Container with 16:10 aspect ratio */}
-                        <div className="aspect-[16/10] bg-black/40 relative flex items-center justify-center overflow-hidden border-b border-white/5">
-                          {movie.logo ? (
-                            <img
-                              src={movie.logo}
-                              alt={movie.name}
-                              referrerPolicy="no-referrer"
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                              onError={(e) => {
-                                (e.target as any).style.display = 'none';
-                              }}
-                            />
-                          ) : null}
-                          
-                          {/* Dark Glass Overlay with group tag */}
-                          <div className="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-sm px-1.5 py-0.5 rounded text-[8px] font-bold text-orange-400 border border-white/5 uppercase">
-                            {movie.group || "Sinema"}
-                          </div>
-
-                          {/* Quick Play overlay icon */}
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
-                            <span className="h-8 w-8 bg-orange-600 rounded-full flex items-center justify-center text-white shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300">
-                              <Play className="h-4 w-4 fill-current ml-0.5" />
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Text details */}
-                        <div className="p-2.5 flex-1 flex flex-col justify-between">
-                          <div>
-                            <h4 className="text-[10px] font-bold text-white/90 line-clamp-2 leading-snug group-hover:text-orange-400 transition-colors">
-                              {movie.name}
-                            </h4>
-                          </div>
-                          {isPlayingThis && (
-                            <div className="flex items-center gap-1 mt-1 text-[8px] font-bold uppercase tracking-wider text-orange-400">
-                              <span className="h-1.5 w-1.5 bg-orange-500 rounded-full animate-ping" />
-                              Oynatılıyor
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 flex justify-between items-center text-[9px] text-white/30 border-t border-white/5 pt-3">
-                  <span>Toplam {recommendedMovies.length} öneri aktif.</span>
-                  <button
-                    onClick={() => setShowRecommendedMovies(false)}
-                    className="px-3.5 py-1.5 text-[9px] uppercase font-bold tracking-wider rounded-lg bg-zinc-900 border border-white/5 hover:bg-zinc-800 text-white transition-all cursor-pointer"
-                  >
-                    Kapat
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* CLINICAL CENTRAL GESTURE OVERLAY LAYER - Pause, Rewind, Zoom visually toggles here */}
         <div className={`absolute inset-0 z-20 bg-black/40 flex items-center justify-center gap-6 transition-all duration-300 pointer-events-none ${
           controlsVisible ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
         }`}>
@@ -1470,10 +1274,7 @@ export default function VideoPlayer({
 
             {/* Playback Suggestions / Recommendations Button */}
             <button
-              onClick={() => {
-                setShowSuggestions((prev) => !prev);
-                setShowRecommendedMovies(false);
-              }}
+              onClick={() => setShowSuggestions((prev) => !prev)}
               className={`flex items-center gap-1.5 px-2 py-1 rounded text-[9.5px] font-bold uppercase transition whitespace-nowrap cursor-pointer hover:scale-105 active:scale-95 ${
                 showSuggestions 
                   ? "bg-orange-600 text-white shadow-[0_0_10px_rgba(234,88,12,0.4)] border border-orange-500/50" 
@@ -1483,23 +1284,6 @@ export default function VideoPlayer({
             >
               <Info className="h-3.5 w-3.5" />
               <span>Öneriler</span>
-            </button>
-
-            {/* Recommended Movies Button */}
-            <button
-              onClick={() => {
-                setShowRecommendedMovies((prev) => !prev);
-                setShowSuggestions(false);
-              }}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[9.5px] font-bold uppercase transition whitespace-nowrap cursor-pointer hover:scale-105 active:scale-95 ${
-                showRecommendedMovies 
-                  ? "bg-amber-600 text-white shadow-[0_0_10px_rgba(245,158,11,0.4)] border border-amber-500/50" 
-                  : "bg-zinc-900 hover:bg-amber-500/30 hover:text-amber-400 border border-white/10 text-white/60"
-              }`}
-              title="Sizin İçin Seçilmiş Önerilen Sinema ve Popüler Yapımlar"
-            >
-              <Film className="h-3.5 w-3.5 text-amber-400" />
-              <span>Film Önerileri</span>
             </button>
 
             {/* Buffer Length Indicator */}

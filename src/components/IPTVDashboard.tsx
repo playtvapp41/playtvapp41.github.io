@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { 
   Tv, 
   Search, 
@@ -277,6 +278,87 @@ export default function IPTVDashboard() {
 
   // Active navigation sidebar tab
   const [activeTab, setActiveTab] = useState<"canli" | "favoriler" | "ayarlar">("canli");
+
+  const [showGlobalRecommendations, setShowGlobalRecommendations] = useState<boolean>(false);
+
+  const globalRecommendedMovies = useMemo(() => {
+    let movies: IPlaylistItem[] = [];
+    if (items && items.length > 0) {
+      movies = items.filter((m) => {
+        const nameLower = m.name.toLowerCase();
+        const groupLower = (m.group || "").toLowerCase();
+        return (
+          nameLower.includes("film") ||
+          nameLower.includes("movie") ||
+          nameLower.includes("cinema") ||
+          nameLower.includes("sinema") ||
+          groupLower.includes("film") ||
+          groupLower.includes("movie") ||
+          groupLower.includes("cinema") ||
+          groupLower.includes("sinema") ||
+          groupLower.includes("vod")
+        );
+      });
+    }
+
+    const fallbackMovies: IPlaylistItem[] = [
+      {
+        id: "rec_sintel",
+        name: "Sintel (Animasyon & Macera)",
+        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
+        logo: "https://upload.wikimedia.org/wikipedia/commons/d/df/Sintel_poster.jpg",
+        group: "Önerilen Sinema"
+      },
+      {
+        id: "rec_bbb",
+        name: "Big Buck Bunny (Komedi & Eğlence)",
+        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        logo: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Big_Buck_Bunny_Poster_300dpi.png",
+        group: "Önerilen Sinema"
+      },
+      {
+        id: "rec_tears",
+        name: "Tears of Steel (Bilim Kurgu & CGI)",
+        url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+        logo: "https://upload.wikimedia.org/wikipedia/commons/e/ee/Tears_of_steel_poster_300_dpi.jpg",
+        group: "Önerilen Sinema"
+      },
+      {
+        id: "rec_cosmos",
+        name: "Cosmos Laundry (Sıra Dışı & Macera)",
+        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+        logo: "https://upload.wikimedia.org/wikipedia/commons/e/ee/Cosmos_Laundry_Project_-_First_Poster.jpg",
+        group: "Önerilen Sinema"
+      },
+      {
+        id: "rec_elephants",
+        name: "Elephants Dream (Sürreal Klasik)",
+        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+        logo: "https://upload.wikimedia.org/wikipedia/commons/d/db/Elephants_dream_poster_300dpi.jpg",
+        group: "Önerilen Sinema"
+      },
+      {
+        id: "rec_nasa",
+        name: "NASA HD TV Canlı Keşif",
+        url: "https://ntv1.nasatv.net/hls/ntv1.m3u8",
+        logo: "https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg",
+        group: "Önerilen Popüler"
+      }
+    ];
+
+    if (movies.length < 6) {
+      const seen = new Set(movies.map(m => m.url));
+      for (const fallback of fallbackMovies) {
+        if (!seen.has(fallback.url)) {
+          movies.push(fallback);
+          seen.add(fallback.url);
+        }
+      }
+    }
+
+    // Sort or reverse to show "latest added" first
+    return [...movies].reverse().slice(0, 15);
+  }, [items]);
 
   // Pagination / Limit state to prevent rendering thousands of items at once which freezes the browser tab
   const [visibleCount, setVisibleCount] = useState<number>(60);
@@ -1033,6 +1115,21 @@ export default function IPTVDashboard() {
             <Compass className="w-5 h-5" />
             <span className="absolute left-20 bg-zinc-900 border border-zinc-800 text-white text-[10px] py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap font-medium tracking-wide z-50">
               Yayın Akışı
+            </span>
+          </button>
+
+          <button
+            onClick={() => setShowGlobalRecommendations(true)}
+            className={`p-3.5 rounded-xl transition-all duration-300 relative group cursor-pointer ${
+              showGlobalRecommendations
+                ? "bg-amber-950/40 text-amber-500 border border-amber-900/30"
+                : "text-white/40 hover:text-amber-500 hover:bg-white/5"
+            }`}
+            title="Önerilen Filmler & Son Eklenenler"
+          >
+            <Film className="w-5 h-5" />
+            <span className="absolute left-20 bg-zinc-900 border border-zinc-800 text-white text-[10px] py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap font-medium tracking-wide z-50">
+              Film Önerileri
             </span>
           </button>
 
@@ -2207,13 +2304,23 @@ export default function IPTVDashboard() {
         {/* MOBILE FLOATING TAB NAVIGATOR BAR */}
         <div className="fixed bottom-4 left-4 right-4 bg-black/90 backdrop-blur-lg border border-white/10 rounded-2xl h-16 flex items-center justify-around z-40 shadow-[0_10px_30px_rgba(0,0,0,0.8)] px-2 md:hidden">
           <button
-            onClick={() => { setActiveTab("canli"); setSelectedCategory("Hepsi"); }}
+            onClick={() => { setActiveTab("canli"); setSelectedCategory("Hepsi"); setShowGlobalRecommendations(false); }}
             className={`flex flex-col items-center justify-center p-2 rounded-xl transition ${
-              activeTab === "canli" ? "text-orange-500 scale-105" : "text-white/40 hover:text-white"
+              activeTab === "canli" && !showGlobalRecommendations ? "text-orange-500 scale-105" : "text-white/40 hover:text-white"
             }`}
           >
             <Compass className="h-5 w-5" />
             <span className="text-[9px] font-bold mt-1 tracking-tight">Akış</span>
+          </button>
+
+          <button
+            onClick={() => setShowGlobalRecommendations(true)}
+            className={`flex flex-col items-center justify-center p-2 rounded-xl transition ${
+              showGlobalRecommendations ? "text-amber-500 scale-105" : "text-white/40 hover:text-white"
+            }`}
+          >
+            <Film className="h-5 w-5" />
+            <span className="text-[9px] font-bold mt-1 tracking-tight">Önerilen</span>
           </button>
           
           <button
@@ -2241,6 +2348,164 @@ export default function IPTVDashboard() {
             <span className="text-[9px] font-bold mt-1 tracking-tight">M3U Ayar</span>
           </button>
         </div>
+
+        {/* GLOBAL RECOMMENDED MOVIES OVERLAY/MODAL */}
+        <AnimatePresence>
+          {showGlobalRecommendations && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowGlobalRecommendations(false)}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 sm:p-6 md:p-8"
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 15 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 15 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-zinc-950/95 border border-white/10 rounded-2xl w-full max-w-4xl p-6 shadow-2xl relative text-left overflow-hidden flex flex-col max-h-[85vh] font-sans"
+              >
+                {/* Visual Accent glow */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-500 via-amber-500 to-red-500" />
+
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-amber-500/10 p-2 rounded-xl border border-amber-500/20">
+                      <Sparkles className="h-5 w-5 text-amber-500 animate-pulse" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-white text-sm sm:text-base tracking-wide">Film Önerileri</h3>
+                        <span className="bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-widest leading-none">
+                          Son Eklenenler
+                        </span>
+                      </div>
+                      <p className="text-xs text-white/40 mt-1">Rehberimizdeki popüler VOD sinema yayınları ve en son eklenen yapımlar</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowGlobalRecommendations(false)}
+                    className="bg-white/5 hover:bg-white/10 text-white/50 hover:text-white h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold transition cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Main Movies Grid List */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 overflow-y-auto pr-1.5 flex-1 py-1 scrollbar-thin">
+                  {globalRecommendedMovies.map((movie) => {
+                    const isPlayingThis = screenSlots.some(s => s.item?.id === movie.id);
+                    const isFav = favorites.some((f) => f.id === movie.id);
+                    
+                    return (
+                      <div
+                        key={movie.id}
+                        className={`group relative flex flex-col text-left rounded-xl overflow-hidden bg-white/[0.01] border transition-all hover:scale-[1.03] duration-300 ${
+                          isPlayingThis
+                            ? "border-orange-500/80 bg-orange-950/20 shadow-[0_0_15px_rgba(234,88,12,0.2)]"
+                            : "border-white/5 hover:border-white/15 hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        {/* Film Image/Logo Container with 16:10 aspect ratio */}
+                        <div 
+                          onClick={() => {
+                            playItemInActiveSlot(movie);
+                            setShowGlobalRecommendations(false);
+                          }}
+                          className="aspect-[16/10] bg-black/60 relative flex items-center justify-center overflow-hidden border-b border-white/5 cursor-pointer"
+                        >
+                          {movie.logo ? (
+                            <img
+                              src={movie.logo}
+                              alt={movie.name}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              onError={(e) => {
+                                (e.target as any).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="text-[12px] font-black text-white/10 tracking-widest">FILM</div>
+                          )}
+                          
+                          {/* Label Badge on TOP LEFT */}
+                          <div className="absolute top-2 left-2 bg-orange-600/90 text-white font-extrabold text-[8px] px-1.5 py-0.5 rounded tracking-wider uppercase leading-none border border-white/10 shadow-md">
+                            Son Eklenen
+                          </div>
+
+                          {/* Quick Play overlay icon */}
+                          <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
+                            <span className="h-9 w-9 bg-orange-600 rounded-full flex items-center justify-center text-white shadow-2xl transform scale-75 group-hover:scale-100 transition-transform duration-300 hover:bg-orange-500">
+                              <Play className="h-4.5 w-4.5 fill-current ml-0.5" />
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Text details & Favorite Action */}
+                        <div className="p-3 flex-1 flex flex-col justify-between">
+                          <div 
+                            onClick={() => {
+                              playItemInActiveSlot(movie);
+                              setShowGlobalRecommendations(false);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <h4 className="text-[11px] font-bold text-white/95 line-clamp-2 leading-snug group-hover:text-orange-400 transition-colors">
+                              {movie.name}
+                            </h4>
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-3.5 pt-1.5 border-t border-white/5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(movie);
+                              }}
+                              className={`p-1.5 rounded-lg border transition ${
+                                isFav 
+                                  ? "bg-rose-500/15 border-rose-500/40 text-rose-500" 
+                                  : "bg-white/5 border-white/5 text-white/40 hover:text-rose-500 hover:border-rose-500/30"
+                              }`}
+                              title={isFav ? "Favorilerden Kaldır" : "Favoriye Ekle"}
+                            >
+                              <Heart className={`h-3 w-3 ${isFav ? "fill-rose-500" : ""}`} />
+                            </button>
+
+                            {isPlayingThis ? (
+                              <div className="flex items-center gap-1 text-[8px] font-extrabold uppercase tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
+                                <span className="h-1.5 w-1.5 bg-orange-500 rounded-full animate-ping" />
+                                Oynatılıyor
+                              </div>
+                            ) : (
+                              <span className="text-[8.5px] font-semibold text-white/30 truncate max-w-[65px]">
+                                {movie.group || "Sinema"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Footer Controls */}
+                <div className="mt-5 flex justify-between items-center text-[10px] text-white/30 border-t border-white/5 pt-4">
+                  <span>Toplam {globalRecommendedMovies.length} son eklenen film önerisi yüklenmiş durumda.</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowGlobalRecommendations(false)}
+                      className="px-5 py-2 text-[10px] uppercase font-bold tracking-wider rounded-xl bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-white transition-all cursor-pointer hover:border-white/20 active:scale-95"
+                    >
+                      Pencereyi Kapat
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </main>
 
