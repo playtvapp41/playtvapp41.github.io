@@ -399,10 +399,10 @@ export default function VideoPlayer({
           if (!useProxy && item.url && !item.url.startsWith("local://") && !item.url.startsWith("blob:")) {
             console.log("CORS/Mixed Content block detected in HLS. Seamlessly retrying with secure proxy...");
             setUseProxy(true);
-            setErrorInfo("Yayın yüklenemedi. Güvenli proxy sunucusu üzerinden tekrar bağlanılıyor...");
+            setErrorInfo("Yayın yüklenemedi. Tekrar bağlanılıyor...");
           } else {
             if (useProxy) {
-              setErrorInfo("Yayın sunucusu aktif değil veya bulunamadı (Çevrimdışı / DNS Hatası). Yayın yayından kaldırılmış olabilir.");
+              setErrorInfo("Yayın sunucusu aktif değil veya bulunamadı.");
               setIsBuffering(false);
             } else {
               switch (data.type) {
@@ -413,7 +413,7 @@ export default function VideoPlayer({
                   hls.recoverMediaError();
                   break;
                 default:
-                  setErrorInfo("Yayın medyası çözülemiyor. Kod çözücü veya format hatası.");
+                  setErrorInfo("Yayın oynatılamadı.");
                   setIsBuffering(false);
                   break;
               }
@@ -760,9 +760,6 @@ export default function VideoPlayer({
             <p className="text-white/40 text-xs mt-1 max-w-[240px]">
               {errorInfo}
             </p>
-            <p className="text-white/20 text-[10px] mt-2 italic">
-              (Desteklenen formatlar: .m3u, .m3u8, .mp4, vb.)
-            </p>
           </div>
         )}
 
@@ -816,10 +813,10 @@ export default function VideoPlayer({
                if (!useProxy && item.url && !item.url.startsWith("local://") && !item.url.startsWith("blob:")) {
                  console.log("CORS or Mixed-Content block on progressive playback. Retrying via secure proxy...");
                  setUseProxy(true);
-                 setErrorInfo("Yayın yüklenemedi. Güvenli proxy sunucusu üzerinden tekrar bağlanılıyor...");
+                 setErrorInfo("Yayın yüklenemedi. Tekrar bağlanılıyor...");
                } else {
                  if (useProxy) {
-                   setErrorInfo("Yayın sunucusu aktif değil veya bulunamadı (Çevrimdışı / DNS Hatası).");
+                   setErrorInfo("Yayın sunucusu aktif değil veya bulunamadı.");
                  } else {
                    setErrorInfo("Yayın oynatılamadı (desteklenmeyen biçim veya kod çözücü)");
                  }
