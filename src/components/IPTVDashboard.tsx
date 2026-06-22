@@ -1284,6 +1284,10 @@ export default function IPTVDashboard() {
                             isActive={isActiveSlot}
                             onNext={() => playNextItem(slot.id, slot.item!.id)}
                             onPrev={() => playPrevItem(slot.id, slot.item!.id)}
+                            allPlaylistItems={items}
+                            onPlayItem={(newItem) => {
+                              setScreenSlots(prev => prev.map(s => s.id === slot.id ? { ...s, item: newItem } : s));
+                            }}
                           />
                           {/* Fast Transit Control Buttons under video */}
                           <div className="flex items-center justify-between gap-2 bg-white/[0.02] border border-white/5 rounded-xl p-1.5 px-2">
