@@ -136,6 +136,19 @@ export const ACCENT_THEME_PRESETS: Record<string, {
   }
 };
 
+// In-memory cache for loaded local playlists when localStorage quota is exceeded (e.g. extremely large IPTV lists)
+const localPlaylistsMemoryCache = new Map<string, string>();
+
+const safeLocalStorageSetItem = (key: string, value: string): boolean => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn(`localStorage setItem failed for key "${key}":`, error);
+    return false;
+  }
+};
+
 export default function IPTVDashboard() {
   const [accentTheme, setAccentTheme] = useState<string>(() => {
     return localStorage.getItem("iptv_accent_theme") || "cyan";
@@ -165,7 +178,7 @@ export default function IPTVDashboard() {
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
-    localStorage.setItem("iptv_theme", nextTheme);
+    safeLocalStorageSetItem("iptv_theme", nextTheme);
   };
 
   const [savedPlaylists, setSavedPlaylists] = useState<IM3UPlaylist[]>(() => {
@@ -194,7 +207,7 @@ export default function IPTVDashboard() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           // If they only have the old 1-item default, migrate to the list with fallbacks
           if (parsed.length === 1 && parsed[0].id === "1" && !parsed[0].name.includes("Çevrimdışı")) {
-            localStorage.setItem("iptv_saved_playlists", JSON.stringify(defaults));
+            safeLocalStorageSetItem("iptv_saved_playlists", JSON.stringify(defaults));
             return defaults;
           }
           return parsed;
@@ -205,7 +218,7 @@ export default function IPTVDashboard() {
     }
 
     try {
-      localStorage.setItem("iptv_saved_playlists", JSON.stringify(defaults));
+      safeLocalStorageSetItem("iptv_saved_playlists", JSON.stringify(defaults));
     } catch (e) {}
     return defaults;
   });
@@ -385,7 +398,7 @@ export default function IPTVDashboard() {
     };
     const nextList = [...savedPlaylists, newPl];
     setSavedPlaylists(nextList);
-    localStorage.setItem("iptv_saved_playlists", JSON.stringify(nextList));
+    safeLocalStorageSetItem("iptv_saved_playlists", JSON.stringify(nextList));
     selectPlaylist(newPl.url);
   };
 
@@ -399,8 +412,15 @@ export default function IPTVDashboard() {
       const playlistName = file.name.replace(/\.[^/.]+$/, "") || "Yüklenen Playlist";
       const playlistUrl = `local://${fileId}`;
       
-      // Save content into localStorage
-      localStorage.setItem(`iptv_playlist_text_${fileId}`, text);
+      // Always cache in memory as primary high-speed source and crash preventer
+      localPlaylistsMemoryCache.set(fileId, text);
+      
+      // Save content into localStorage safely
+      const savedSuccessfully = safeLocalStorageSetItem(`iptv_playlist_text_${fileId}`, text);
+      if (!savedSuccessfully) {
+        console.warn("Storage quota exceeded. Using in-memory fallback for uploaded playlist.");
+        setFallbackErrorNote("Depolama kotası doldu! Yerel playlist tarayıcıya kalıcı kaydedilemedi ama bu oturum kesintisiz çalışacaktır.");
+      }
       
       addPlaylist(playlistName, playlistUrl);
     };
@@ -420,7 +440,7 @@ export default function IPTVDashboard() {
   const selectPlaylist = (url: string) => {
     setCurrentPlaylistUrl(url);
     setPlaylistInput(url);
-    localStorage.setItem("iptv_active_playlist_url", url);
+    safeLocalStorageSetItem("iptv_active_playlist_url", url);
   };
 
   const deletePlaylist = (id: string) => {
@@ -428,11 +448,12 @@ export default function IPTVDashboard() {
     if (deletedPl && deletedPl.url.startsWith("local://")) {
       const fileId = deletedPl.url.replace("local://", "");
       localStorage.removeItem(`iptv_playlist_text_${fileId}`);
+      localPlaylistsMemoryCache.delete(fileId);
     }
 
     const nextList = savedPlaylists.filter(pl => pl.id !== id);
     setSavedPlaylists(nextList);
-    localStorage.setItem("iptv_saved_playlists", JSON.stringify(nextList));
+    safeLocalStorageSetItem("iptv_saved_playlists", JSON.stringify(nextList));
     
     // Fallback if deleted playlist was active
     if (deletedPl && deletedPl.url === currentPlaylistUrl) {
@@ -454,7 +475,7 @@ export default function IPTVDashboard() {
       return pl;
     });
     setSavedPlaylists(nextList);
-    localStorage.setItem("iptv_saved_playlists", JSON.stringify(nextList));
+    safeLocalStorageSetItem("iptv_saved_playlists", JSON.stringify(nextList));
     
     const updatedPl = nextList.find(pl => pl.id === id);
     if (updatedPl && updatedPl.url === currentPlaylistUrl) {
@@ -537,7 +558,7 @@ export default function IPTVDashboard() {
     try {
       if (urlToFetch.startsWith("local://")) {
         const fileId = urlToFetch.replace("local://", "");
-        const rawText = localStorage.getItem(`iptv_playlist_text_${fileId}`) || "";
+        const rawText = localPlaylistsMemoryCache.get(fileId) || localStorage.getItem(`iptv_playlist_text_${fileId}`) || "";
         if (!rawText) {
           throw new Error("Yerel yüklenen liste içeriği boş veya silinmiş.");
         }
@@ -730,7 +751,7 @@ export default function IPTVDashboard() {
     }
     
     setFavorites(nextFavorites);
-    localStorage.setItem("iptv_favorites", JSON.stringify(nextFavorites));
+    safeLocalStorageSetItem("iptv_favorites", JSON.stringify(nextFavorites));
   };
 
   // Clear favorites list completely
@@ -1576,7 +1597,7 @@ export default function IPTVDashboard() {
                   theme === 'light' ? 'bg-zinc-100 border-zinc-200' : 'bg-black/40 border-white/5'
                 }`}>
                   <button
-                    onClick={() => { setLayoutMode("grid"); localStorage.setItem("iptv_layout_mode", "grid"); }}
+                    onClick={() => { setLayoutMode("grid"); safeLocalStorageSetItem("iptv_layout_mode", "grid"); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       layoutMode === "grid"
                         ? "bg-orange-500 text-white shadow-sm"
@@ -1589,7 +1610,7 @@ export default function IPTVDashboard() {
                   </button>
 
                   <button
-                    onClick={() => { setLayoutMode("karo"); localStorage.setItem("iptv_layout_mode", "karo"); }}
+                    onClick={() => { setLayoutMode("karo"); safeLocalStorageSetItem("iptv_layout_mode", "karo"); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       layoutMode === "karo"
                         ? "bg-orange-500 text-white shadow-sm"
@@ -1602,7 +1623,7 @@ export default function IPTVDashboard() {
                   </button>
 
                   <button
-                    onClick={() => { setLayoutMode("list"); localStorage.setItem("iptv_layout_mode", "list"); }}
+                    onClick={() => { setLayoutMode("list"); safeLocalStorageSetItem("iptv_layout_mode", "list"); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       layoutMode === "list"
                         ? "bg-orange-500 text-white shadow-sm"
@@ -1680,7 +1701,7 @@ export default function IPTVDashboard() {
                             key={key}
                             onClick={() => {
                               setAccentTheme(key);
-                              localStorage.setItem("iptv_accent_theme", key);
+                              safeLocalStorageSetItem("iptv_accent_theme", key);
                             }}
                             className={`flex items-center justify-between sm:justify-center flex-row sm:flex-col gap-2.5 p-3 rounded-xl border text-left sm:text-center transition-all cursor-pointer ${
                               isPresetSelected
