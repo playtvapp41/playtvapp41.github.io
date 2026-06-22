@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import Hls from "hls.js";
 import { 
   Play, 
@@ -97,6 +97,21 @@ export default function VideoPlayer({
      !window.location.hostname.includes("localhost") && 
      !window.location.hostname.includes("127.0.0.1"))
   );
+
+  const isWebEmbed = useMemo(() => {
+    if (!item?.url) return false;
+    const url = item.url.toLowerCase();
+    return (
+      url.includes("vidmody") || 
+      url.includes("/vs/") || 
+      url.includes("ok.ru") || 
+      url.includes("youtube.com") || 
+      url.includes("youtu.be") || 
+      url.includes("vimeo.com") || 
+      url.includes("dailymotion.com") ||
+      (!url.includes(".m3u8") && !url.includes(".mp4") && !url.includes(".ts") && !url.includes(".mkv") && !url.includes(".webm") && !url.includes("hls") && url.startsWith("http") && !url.includes(".mp3"))
+    );
+  }, [item?.url]);
 
   const handleCopyUrl = () => {
     if (item.url) {
@@ -331,6 +346,12 @@ export default function VideoPlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !item.url) return;
+
+    if (isWebEmbed) {
+      setErrorInfo(null);
+      setIsBuffering(false);
+      return;
+    }
 
     setErrorInfo(null);
     setIsBuffering(true);
@@ -777,53 +798,63 @@ export default function VideoPlayer({
           </div>
         )}
 
-        <div className="w-full h-full overflow-hidden flex items-center justify-center">
-          <video
-            ref={videoRef}
-            playsInline
-            className="w-full h-full pointer-events-auto transition-all duration-200"
-            style={{ 
-              maxHeight: "100%",
-              objectFit: aspectFit as any,
-              transform: `scale(${zoomScale / 100})`
-            }}
-            onTimeUpdate={handleTimeUpdate}
-            onPlay={() => {
-              setIsPlaying(true);
-              setIsBuffering(false);
-            }}
-            onPause={() => setIsPlaying(false)}
-            onWaiting={() => setIsBuffering(true)}
-            onPlaying={() => setIsBuffering(false)}
-            onCanPlay={() => setIsBuffering(false)}
-             onError={(e) => {
-               if (hlsRef.current) {
-                 console.log("Native video error while HLS is active (delegated to HLS)");
-                 return;
-               }
-               const video = videoRef.current;
-               if (!video || !video.src || video.src === "" || video.src === window.location.href) {
-                 return;
-               }
-               if (video.error && video.error.code === 4) {
-                 console.log("Ignoring transient source transition error.");
-                 return;
-               }
-               console.warn("Native player error", video.error);
-
-               if (!useProxy && item.url && !item.url.startsWith("local://") && !item.url.startsWith("blob:")) {
-                 console.log("CORS or Mixed-Content block on progressive playback. Retrying via secure proxy...");
-                 setUseProxy(true);
-                 setErrorInfo("Yayın yüklenemedi. Güvenli proxy sunucusu üzerinden tekrar bağlanılıyor...");
-               } else {
-                 if (useProxy) {
-                   setErrorInfo("Yayın sunucusu aktif değil veya bulunamadı (Çevrimdışı / DNS Hatası).");
-                 } else {
-                   setErrorInfo("Yayın oynatılamadı (desteklenmeyen biçim veya kod çözücü)");
+        <div className="w-full h-full overflow-hidden flex items-center justify-center relative">
+          {isWebEmbed ? (
+            <iframe
+              src={item.url}
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+              referrerPolicy="no-referrer"
+              className="w-full h-full border-0 absolute inset-0 z-10 pointer-events-auto"
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              playsInline
+              className="w-full h-full pointer-events-auto transition-all duration-200"
+              style={{ 
+                maxHeight: "100%",
+                objectFit: aspectFit as any,
+                transform: `scale(${zoomScale / 100})`
+              }}
+              onTimeUpdate={handleTimeUpdate}
+              onPlay={() => {
+                setIsPlaying(true);
+                setIsBuffering(false);
+              }}
+              onPause={() => setIsPlaying(false)}
+              onWaiting={() => setIsBuffering(true)}
+              onPlaying={() => setIsBuffering(false)}
+              onCanPlay={() => setIsBuffering(false)}
+               onError={(e) => {
+                 if (hlsRef.current) {
+                   console.log("Native video error while HLS is active (delegated to HLS)");
+                   return;
                  }
-               }
-             }}
-          />
+                 const video = videoRef.current;
+                 if (!video || !video.src || video.src === "" || video.src === window.location.href) {
+                   return;
+                 }
+                 if (video.error && video.error.code === 4) {
+                   console.log("Ignoring transient source transition error.");
+                   return;
+                 }
+                 console.warn("Native player error", video.error);
+
+                 if (!useProxy && item.url && !item.url.startsWith("local://") && !item.url.startsWith("blob:")) {
+                   console.log("CORS or Mixed-Content block on progressive playback. Retrying via secure proxy...");
+                   setUseProxy(true);
+                   setErrorInfo("Yayın yüklenemedi. Güvenli proxy sunucusu üzerinden tekrar bağlanılıyor...");
+                 } else {
+                   if (useProxy) {
+                     setErrorInfo("Yayın sunucusu aktif değil veya bulunamadı (Çevrimdışı / DNS Hatası).");
+                   } else {
+                     setErrorInfo("Yayın oynatılamadı (desteklenmeyen biçim veya kod çözücü)");
+                   }
+                 }
+               }}
+            />
+          )}
         </div>
 
         {/* Dynamic Interactive subtitles layer overlay */}
@@ -843,53 +874,55 @@ export default function VideoPlayer({
         )}
 
         {/* CLINICAL CENTRAL GESTURE OVERLAY LAYER - Pause, Rewind, Zoom visually toggles here */}
-        <div className={`absolute inset-0 z-20 bg-black/40 flex items-center justify-center gap-6 transition-all duration-300 pointer-events-none ${
-          controlsVisible ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
-        }`}>
-          {/* Centered Big Rewind */}
-          <button
-            onClick={(e) => skipSeconds(-10, e)}
-            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/75 hover:text-white hover:bg-orange-600/30 hover:border-orange-500/50 transition-all active:scale-90 pointer-events-auto cursor-pointer"
-            title="10sn Geri Sar"
-          >
-            <RotateCcw className="h-5 w-5" />
-          </button>
+        {!isWebEmbed && (
+          <div className={`absolute inset-0 z-20 bg-black/40 flex items-center justify-center gap-6 transition-all duration-300 pointer-events-none ${
+            controlsVisible ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+          }`}>
+            {/* Centered Big Rewind */}
+            <button
+              onClick={(e) => skipSeconds(-10, e)}
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/75 hover:text-white hover:bg-orange-600/30 hover:border-orange-500/50 transition-all active:scale-90 pointer-events-auto cursor-pointer"
+              title="10sn Geri Sar"
+            >
+              <RotateCcw className="h-5 w-5" />
+            </button>
 
-          {/* Large Pulsating Center Play/Pause button */}
-          <button
-            onClick={handlePlayPause}
-            className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-orange-600 hover:bg-orange-500 flex items-center justify-center text-white shadow-[0_0_30px_rgba(234,88,12,0.6)] hover:scale-105 active:scale-95 transition-all pointer-events-auto cursor-pointer"
-            title={isPlaying ? "Durdur" : "Başlat"}
-          >
-            {isPlaying ? (
-              <Pause className="h-6 w-6 stroke-[2.5]" />
-            ) : (
-              <Play className="h-6 w-6 fill-white ml-1 stroke-[2.5]" />
-            )}
-          </button>
+            {/* Large Pulsating Center Play/Pause button */}
+            <button
+              onClick={handlePlayPause}
+              className="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-orange-600 hover:bg-orange-500 flex items-center justify-center text-white shadow-[0_0_30px_rgba(234,88,12,0.6)] hover:scale-105 active:scale-95 transition-all pointer-events-auto cursor-pointer"
+              title={isPlaying ? "Durdur" : "Başlat"}
+            >
+              {isPlaying ? (
+                <Pause className="h-6 w-6 stroke-[2.5]" />
+              ) : (
+                <Play className="h-6 w-6 fill-white ml-1 stroke-[2.5]" />
+              )}
+            </button>
 
-          {/* New Fullscreen Toggle in Center Overlay */}
-          <button
-            onClick={handleFullscreen}
-            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/75 hover:text-white hover:bg-orange-600/30 hover:border-orange-500/50 transition-all active:scale-90 pointer-events-auto cursor-pointer"
-            title={isFullscreen ? "Küçült" : "Tam Ekran Yap"}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="h-5 w-5" />
-            ) : (
-              <Maximize className="h-5 w-5" />
-            )}
-          </button>
+            {/* New Fullscreen Toggle in Center Overlay */}
+            <button
+              onClick={handleFullscreen}
+              className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/75 hover:text-white hover:bg-orange-600/30 hover:border-orange-500/50 transition-all active:scale-90 pointer-events-auto cursor-pointer"
+              title={isFullscreen ? "Küçült" : "Tam Ekran Yap"}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-5 w-5" />
+              ) : (
+                <Maximize className="h-5 w-5" />
+              )}
+            </button>
 
-          {/* Centered Big Fast Forward */}
-          <button
-            onClick={(e) => skipSeconds(10, e)}
-            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/75 hover:text-white hover:bg-orange-600/30 hover:border-orange-500/50 transition-all active:scale-90 pointer-events-auto cursor-pointer"
-            title="10sn İleri Sar"
-          >
-            <FastForward className="h-5 w-5" />
-          </button>
-        </div>
+            {/* Centered Big Fast Forward */}
+            <button
+              onClick={(e) => skipSeconds(10, e)}
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/60 border border-white/10 flex items-center justify-center text-white/75 hover:text-white hover:bg-orange-600/30 hover:border-orange-500/50 transition-all active:scale-90 pointer-events-auto cursor-pointer"
+              title="10sn İleri Sar"
+            >
+              <FastForward className="h-5 w-5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* TRACK SETTINGS MENUS (SUBTITLES, AUDIO & QUALITY SELECTOR POPUPS) */}
@@ -958,36 +991,7 @@ export default function VideoPlayer({
             </>
           )}
 
-          {activeMenu === "quality" && (
-            <>
-              <div className="border-b border-white/5 pb-1.5 flex items-center gap-1.5 text-orange-400 font-extrabold uppercase text-[10px] tracking-wider">
-                <Sliders className="h-3.5 w-3.5" />
-                YAYIN ÇÖZÜNÜRLÜĞÜ
-              </div>
-              <div className="flex flex-col gap-1 font-mono">
-                {[
-                  { id: "auto", label: "Otomatik (Auto HLS)" },
-                  { id: "1080p", label: "1080p Ultra HD" },
-                  { id: "720p", label: "720p Net HD" },
-                  { id: "480p", label: "480p Tasarruf" }
-                ].map((q) => (
-                  <button
-                    key={q.id}
-                    onClick={() => {
-                      setSelectedQuality(q.id);
-                      setActiveMenu(null);
-                    }}
-                    className={`w-full text-left p-1.5 rounded-lg flex items-center justify-between transition cursor-pointer text-[11px] ${
-                      selectedQuality === q.id ? "bg-orange-655/40 text-orange-400 font-bold" : "text-white/60 hover:text-white hover:bg-white/5"
-                    }`}
-                  >
-                    <span>{q.label}</span>
-                    {selectedQuality === q.id && <Check className="h-3.5 w-3.5 text-orange-400" />}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+
         </div>
       )}
 
@@ -999,27 +1003,29 @@ export default function VideoPlayer({
         }`}
       >
         {/* Seek timeline */}
-        <div className="flex items-center gap-2 mb-2 z-10 relative">
-          <span className="text-[9px] font-mono text-white/40">
-            {new Date(currentTime * 1000).toISOString().substr(11, 8)}
-          </span>
-          <div 
-            onClick={handleSeek}
-            className="relative flex-1 group/slider h-2 bg-white/15 rounded-full cursor-pointer overflow-hidden transition-all duration-150 hover:h-2.5"
-          >
-            <div
-              className={`absolute top-0 bottom-0 left-0 bg-orange-600 rounded-full shadow-[0_0_10px_rgba(234,88,12,0.8)]`}
-              style={{
-                width: `${duration ? (currentTime / duration) * 100 : 100}%`,
-              }}
-            />
-          </div>
-          {duration > 0 && (
+        {!isWebEmbed && (
+          <div className="flex items-center gap-2 mb-2 z-10 relative">
             <span className="text-[9px] font-mono text-white/40">
-              {new Date(duration * 1000).toISOString().substr(11, 8)}
+              {new Date(currentTime * 1000).toISOString().substr(11, 8)}
             </span>
-          )}
-        </div>
+            <div 
+              onClick={handleSeek}
+              className="relative flex-1 group/slider h-2 bg-white/15 rounded-full cursor-pointer overflow-hidden transition-all duration-150 hover:h-2.5"
+            >
+              <div
+                className={`absolute top-0 bottom-0 left-0 bg-orange-600 rounded-full shadow-[0_0_10px_rgba(234,88,12,0.8)]`}
+                style={{
+                  width: `${duration ? (currentTime / duration) * 100 : 100}%`,
+                }}
+              />
+            </div>
+            {duration > 0 && (
+              <span className="text-[9px] font-mono text-white/40">
+                {new Date(duration * 1000).toISOString().substr(11, 8)}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Actions Button Bar */}
         <div className="flex items-center justify-between z-10 relative">
@@ -1156,18 +1162,7 @@ export default function VideoPlayer({
               />
             </div>
             
-            {/* Resolution Selector */}
-            <button
-              onClick={() => setActiveMenu((prev) => (prev === "quality" ? null : "quality"))}
-              className={`p-1 px-1.5 rounded uppercase font-mono font-bold text-[9px] cursor-pointer transition ${
-                selectedQuality !== "auto" || activeMenu === "quality"
-                  ? "bg-orange-600/20 text-orange-400 border border-orange-500/35"
-                  : "bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white"
-              }`}
-              title="Yayın Kalitesi"
-            >
-              {selectedQuality === "auto" ? "AUTO" : selectedQuality}
-            </button>
+
 
             {/* TV'ye Yayınla Button */}
             <button

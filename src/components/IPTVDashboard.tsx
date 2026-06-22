@@ -276,7 +276,7 @@ export default function IPTVDashboard() {
   const [lowLatencyEnabled, setLowLatencyEnabled] = useState<boolean>(true);
 
   // Active navigation sidebar tab
-  const [activeTab, setActiveTab] = useState<"canli" | "favoriler" | "kesfet" | "ayarlar">("canli");
+  const [activeTab, setActiveTab] = useState<"canli" | "favoriler" | "ayarlar">("canli");
 
   // Pagination / Limit state to prevent rendering thousands of items at once which freezes the browser tab
   const [visibleCount, setVisibleCount] = useState<number>(60);
@@ -1051,20 +1051,7 @@ export default function IPTVDashboard() {
             </span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("kesfet")}
-            className={`p-3.5 rounded-xl transition-all duration-300 relative group cursor-pointer ${
-              activeTab === "kesfet"
-                ? "bg-white/10 text-orange-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
-                : "text-white/40 hover:text-white hover:bg-white/5"
-            }`}
-            title="Önerilen Kanallar"
-          >
-            <Sparkles className="w-5 h-5" />
-            <span className="absolute left-20 bg-zinc-900 border border-zinc-800 text-white text-[10px] py-1 px-2.5 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap font-medium tracking-wide z-50">
-              Önerilenler
-            </span>
-          </button>
+
 
           <button
             onClick={() => setActiveTab("ayarlar")}
@@ -1837,65 +1824,6 @@ export default function IPTVDashboard() {
                     )}
                   </div>
                 </div>
-              ) : activeTab === "kesfet" ? (
-                <div className="bg-[#0c0c0f] border border-white/5 rounded-2xl p-4 md:p-6 text-left flex flex-col gap-6 font-sans">
-                  <div className="border-b border-white/5 pb-4">
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-orange-500" />
-                      KEŞFET & SİNEMA ÖNERİLERİ
-                    </h3>
-                    <p className="text-xs text-white/50 mt-1">
-                      M3U listenizdeki en popüler ve yüksek puanlı yapımlar arasından seçtiğimiz günün önerileri.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {items.slice(0, 6).map((item) => {
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => {
-                            playItemInActiveSlot(item);
-                            setActiveTab("canli");
-                          }}
-                          className="bg-[#050507] border border-white/5 p-4 rounded-xl hover:border-orange-500/50 transition duration-300 flex flex-col justify-between gap-3 text-left cursor-pointer group"
-                        >
-                          <div className="flex gap-4 items-start">
-                            {/* Poster / Artwork Container */}
-                            <div className="relative w-16 h-20 rounded-lg bg-zinc-950 border border-white/10 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-orange-600/10 to-zinc-950">
-                                <Film className="h-5 w-5 text-zinc-700 group-hover:text-orange-500 transition-colors" />
-                              </div>
-                              {item.logo ? (
-                                <img 
-                                  src={item.logo} 
-                                  alt={item.name} 
-                                  referrerPolicy="no-referrer"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = "none";
-                                  }}
-                                  className="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-110 z-10"
-                                />
-                              ) : null}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <span className="text-[8px] bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-extrabold px-1.5 py-0.5 rounded tracking-wider uppercase">
-                                Öneri
-                              </span>
-                              <h4 className="font-bold text-white group-hover:text-orange-400 transition-colors text-xs mt-1.5 line-clamp-2 leading-snug">{item.name}</h4>
-                              <p className="text-[10px] text-white/40 truncate mt-1">{item.group}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between border-t border-white/5 pt-2 text-[10px] text-white/55">
-                            <span>Hemen Oynat</span>
-                            <Play className="h-3 w-3 text-orange-500 fill-orange-500" />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
               ) : filteredItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-24 bg-[#0a0a0c]/60 border border-dashed border-white/10 rounded-2xl text-center select-none font-sans">
                   <BookOpen className="h-8 w-8 text-white/20 mb-2" />
@@ -2294,15 +2222,7 @@ export default function IPTVDashboard() {
             <span className="text-[9px] font-bold mt-1 tracking-tight">Favoriler</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("kesfet")}
-            className={`flex flex-col items-center justify-center p-2 rounded-xl transition ${
-              activeTab === "kesfet" ? "text-orange-500 scale-105" : "text-white/40 hover:text-white"
-            }`}
-          >
-            <Sparkles className="h-5 w-5" />
-            <span className="text-[9px] font-bold mt-1 tracking-tight">Önerilen</span>
-          </button>
+
 
           <button
             onClick={() => setActiveTab("ayarlar")}
