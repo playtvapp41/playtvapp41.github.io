@@ -32,7 +32,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { IPlaylistItem, getApiUrl } from "../types";
+import { IPlaylistItem, getApiUrl, isStaticSite } from "../types";
 
 interface VideoPlayerProps {
   item: IPlaylistItem;
@@ -347,7 +347,9 @@ export default function VideoPlayer({
     const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
     const needsProxy = (item.url.startsWith("http://") && isHttps) || useProxy;
     const urlToLoad = needsProxy 
-      ? getApiUrl(`/api/proxy-stream?url=${encodeURIComponent(item.url)}`) 
+      ? (isStaticSite 
+          ? `https://corsproxy.io/?${encodeURIComponent(item.url)}`
+          : getApiUrl(`/api/proxy-stream?url=${encodeURIComponent(item.url)}`))
       : item.url;
 
     const isHls = urlToLoad.includes(".m3u8") || 

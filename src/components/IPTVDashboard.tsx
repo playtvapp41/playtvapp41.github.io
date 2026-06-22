@@ -46,7 +46,7 @@ import {
   SkipBack,
   SkipForward
 } from "lucide-react";
-import { IPlaylistItem, IScreenSlot, getApiUrl } from "../types";
+import { IPlaylistItem, IScreenSlot, getApiUrl, isStaticSite } from "../types";
 import VideoPlayer from "./VideoPlayer";
 
 interface IM3UPlaylist {
@@ -472,38 +472,104 @@ export default function IPTVDashboard() {
       // Remote file parsing branch
       let fetchedItems: IPlaylistItem[] = [];
 
-      try {
-        // Try calling the Express Server proxy backend first (for CORS bypass & fallback logic)
-        const parsedUrl = getApiUrl(`/api/parse-m3u?url=${encodeURIComponent(urlToFetch)}`);
-        const response = await fetch(parsedUrl);
+      if (isStaticSite) {
+        console.log("Static site detected (GitHub Pages). Bypassing backend parser, running pure client-side fetching.");
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && Array.isArray(data.items)) {
-            fetchedItems = data.items;
-            setIsUsingFallback(!!data.isFallback);
-            if (data.errorNote) {
-              setFallbackErrorNote(data.errorNote);
+        let m3uText = "";
+        let fetchSuccess = false;
+        
+        // Step 1: Direct fetch from the browser
+        try {
+          console.log("[Client Fetch] Attempting direct fetch:", urlToFetch);
+          const directResponse = await fetch(urlToFetch);
+          if (directResponse.ok) {
+            m3uText = await directResponse.text();
+            fetchSuccess = true;
+            console.log("[Client Fetch] Direct fetch succeeded!");
+          }
+        } catch (e) {
+          console.warn("[Client Fetch] Direct fetch failed (CORS block expected):", e);
+        }
+
+        // Step 2: Fallback to corsproxy.io
+        if (!fetchSuccess) {
+          try {
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(urlToFetch)}`;
+            console.log("[Client Fetch] Attempting fetch via corsproxy.io:", proxyUrl);
+            const proxyResponse = await fetch(proxyUrl);
+            if (proxyResponse.ok) {
+              m3uText = await proxyResponse.text();
+              fetchSuccess = true;
+              console.log("[Client Fetch] Proxy fetch (corsproxy) succeeded!");
             }
+          } catch (e) {
+            console.warn("[Client Fetch] Proxy fetch (corsproxy) failed:", e);
+          }
+        }
+
+        // Step 3: Fallback to api.allorigins.win JSON proxy
+        if (!fetchSuccess) {
+          try {
+            const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(urlToFetch)}`;
+            console.log("[Client Fetch] Attempting fetch via AllOrigins proxy:", allOriginsUrl);
+            const response = await fetch(allOriginsUrl);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.contents) {
+                m3uText = data.contents;
+                fetchSuccess = true;
+                console.log("[Client Fetch] Proxy fetch (AllOrigins) succeeded!");
+              }
+            }
+          } catch (e) {
+            console.warn("[Client Fetch] Proxy fetch (AllOrigins) failed:", e);
+          }
+        }
+
+        if (fetchSuccess && m3uText) {
+          const clientItems = parseM3UContentClient(m3uText);
+          if (clientItems.length > 0) {
+            fetchedItems = clientItems;
           } else {
-            throw new Error(data.error || "Playlist parse edilmedi.");
+            throw new Error("M3U listesi indirildi ancak içerisinden geçerli bir yayın bağlantısı çözümlenemedi.");
           }
         } else {
-          throw new Error(`Server status: ${response.status}`);
+          throw new Error("M3U listeniz indirilemedi. Bu durum, yayın listesi sunucusunun kapalı olmasından veya güvenlik engellemesinden (CORS) kaynaklanıyor olabilir. Lütfen .m3u dosyasını kaydedip doğrudan yükleyin (Dosya Sürükle-Bırak).");
         }
-      } catch (serverErr) {
-        console.warn("Express server API failed or is not available. Falling back to client-side direct fetch...", serverErr);
-        // Fallback: If hosted on GitHub Pages (static site) or server is down/unreachable, fetch directly from browser!
-        const directResponse = await fetch(urlToFetch);
-        if (!directResponse.ok) {
-          throw new Error(`Yayın listesi doğrudan indirilemedi (${directResponse.status}). CORS engellemesi veya geçersiz link olabilir. Lütfen .m3u dosyasını indirin ve doğrudan siteye yükleyin.`);
+      } else {
+        try {
+          // Try calling the Express Server proxy backend first (for CORS bypass & fallback logic)
+          const parsedUrl = getApiUrl(`/api/parse-m3u?url=${encodeURIComponent(urlToFetch)}`);
+          const response = await fetch(parsedUrl);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && Array.isArray(data.items)) {
+              fetchedItems = data.items;
+              setIsUsingFallback(!!data.isFallback);
+              if (data.errorNote) {
+                setFallbackErrorNote(data.errorNote);
+              }
+            } else {
+              throw new Error(data.error || "Playlist parse edilmedi.");
+            }
+          } else {
+            throw new Error(`Server status: ${response.status}`);
+          }
+        } catch (serverErr) {
+          console.warn("Express server API failed or is not available. Falling back to client-side direct fetch...", serverErr);
+          // Fallback: If hosted on GitHub Pages (static site) or server is down/unreachable, fetch directly from browser!
+          const directResponse = await fetch(urlToFetch);
+          if (!directResponse.ok) {
+            throw new Error(`Yayın listesi doğrudan indirilemedi (${directResponse.status}). CORS engellemesi veya geçersiz link olabilir. Lütfen .m3u dosyasını indirin ve doğrudan siteye yükleyin.`);
+          }
+          const text = await directResponse.text();
+          const clientItems = parseM3UContentClient(text);
+          if (clientItems.length === 0) {
+            throw new Error("M3U dosyası içerisinde geçerli bir yayın bağlantısı bulunamadı.");
+          }
+          fetchedItems = clientItems;
         }
-        const text = await directResponse.text();
-        const clientItems = parseM3UContentClient(text);
-        if (clientItems.length === 0) {
-          throw new Error("M3U dosyası içerisinde geçerli bir yayın bağlantısı bulunamadı.");
-        }
-        fetchedItems = clientItems;
       }
 
       if (fetchedItems.length > 0) {

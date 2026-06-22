@@ -25,6 +25,11 @@ export interface IPlaybackHistory {
   timestamp: number;
 }
 
+export const isStaticSite = typeof window !== "undefined" && 
+  !window.location.hostname.includes("localhost") && 
+  !window.location.hostname.includes("127.0.0.1") && 
+  !window.location.hostname.includes("run.app");
+
 export const getApiUrl = (path: string): string => {
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
@@ -32,6 +37,6 @@ export const getApiUrl = (path: string): string => {
       return path;
     }
   }
-  // Otherwise, route requests to our deployed Cloud Run server proxy!
+  // Otherwise, route requests to our deployed Cloud Run server proxy (for sandbox environment)
   return `https://ais-pre-qlj7czuvstz45iuihdgpce-983444617668.europe-west2.run.app${path}`;
 };
