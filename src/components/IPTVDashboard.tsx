@@ -46,7 +46,7 @@ import {
   SkipBack,
   SkipForward
 } from "lucide-react";
-import { IPlaylistItem, IScreenSlot } from "../types";
+import { IPlaylistItem, IScreenSlot, getApiUrl } from "../types";
 import VideoPlayer from "./VideoPlayer";
 
 interface IM3UPlaylist {
@@ -474,7 +474,7 @@ export default function IPTVDashboard() {
 
       try {
         // Try calling the Express Server proxy backend first (for CORS bypass & fallback logic)
-        const parsedUrl = `/api/parse-m3u?url=${encodeURIComponent(urlToFetch)}`;
+        const parsedUrl = getApiUrl(`/api/parse-m3u?url=${encodeURIComponent(urlToFetch)}`);
         const response = await fetch(parsedUrl);
         
         if (response.ok) {

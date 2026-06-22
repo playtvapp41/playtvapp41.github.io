@@ -24,3 +24,14 @@ export interface IPlaybackHistory {
   itemId: string;
   timestamp: number;
 }
+
+export const getApiUrl = (path: string): string => {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1" || host.includes("run.app")) {
+      return path;
+    }
+  }
+  // Otherwise, route requests to our deployed Cloud Run server proxy!
+  return `https://ais-pre-qlj7czuvstz45iuihdgpce-983444617668.europe-west2.run.app${path}`;
+};

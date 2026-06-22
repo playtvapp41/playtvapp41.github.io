@@ -1,40 +1,38 @@
-name: Deploy to GitHub Pages
+name: GitHub Pages'a Yayinla
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
+      - master
+      - playtvapp41.github.io
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout 🛎️
         uses: actions/checkout@v4
-      - name: Set up Node
+
+      - name: Node.js Kurulumu ⚙️
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-      - name: Install dependencies
-        run: npm ci
-      - name: Build
+          cache: npm
+
+      - name: Bagimliliklari Yukle 📦
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+
+      - name: Projeyi Derle (Build) 🏗️
         run: npm run build
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+
+      - name: GitHub Pages'a Yukle (Deploy) 🚀
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: './dist'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          folder: dist
+          branch: gh-pages

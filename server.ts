@@ -7,6 +7,18 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Enable CORS globally to support static host deployments (like GitHub Pages)
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD");
+    res.setHeader("Access-Control-Allow-Headers", "Range, Content-Type, Authorization, Accept, Origin");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges, Content-Type");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // Middleware for parsing JSON
   app.use(express.json({ limit: "50mb" }));
 

@@ -32,7 +32,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { IPlaylistItem } from "../types";
+import { IPlaylistItem, getApiUrl } from "../types";
 
 interface VideoPlayerProps {
   item: IPlaylistItem;
@@ -343,9 +343,11 @@ export default function VideoPlayer({
 
     video.pause();
 
-    // Use our server-side secure proxy fallback if direct stream loading is blocked/fails
-    const urlToLoad = useProxy 
-      ? `/api/proxy-stream?url=${encodeURIComponent(item.url)}` 
+    // Use our server-side secure proxy fallback if direct stream loading is blocked/fails/requires HTTPS
+    const isHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+    const needsProxy = (item.url.startsWith("http://") && isHttps) || useProxy;
+    const urlToLoad = needsProxy 
+      ? getApiUrl(`/api/proxy-stream?url=${encodeURIComponent(item.url)}`) 
       : item.url;
 
     const isHls = urlToLoad.includes(".m3u8") || 
@@ -748,70 +750,13 @@ export default function VideoPlayer({
         className="relative w-full h-full flex flex-1 items-center justify-center bg-black cursor-pointer group"
       >
         {errorInfo && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-4 sm:p-6 text-center select-none overflow-y-auto animate-fadeIn max-h-full">
-            <AlertCircle className="h-10 w-10 text-orange-500 mb-3 shrink-0" />
-            <h3 className="text-white font-bold text-sm tracking-wider uppercase shrink-0">Medya Çözümleme Hatası</h3>
-            <p className="text-white/50 text-[11px] mt-1.5 max-w-[280px] shrink-0 leading-normal">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-6 text-center select-none animate-fadeIn">
+            <AlertCircle className="h-10 w-10 text-orange-500 mb-3" />
+            <h3 className="text-white font-bold text-sm tracking-wider uppercase">Medya Çözümleme Hatası</h3>
+            <p className="text-white/40 text-xs mt-1 max-w-[240px]">
               {errorInfo}
             </p>
-
-            {isStaticOrGithubPages && (
-              <div className="mt-4 p-4 bg-orange-950/20 rounded-2xl border border-orange-500/10 max-w-[420px] text-left shrink-0 pointer-events-auto">
-                <h4 className="text-orange-400 font-extrabold text-[11px] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5" />
-                  Statik Sunucu & HTTPS Sınırlaması
-                </h4>
-                <p className="text-white/60 text-[10px] leading-normal mb-3">
-                  Bu uygulama şu an <strong>GitHub Pages (HTTPS)</strong> gibi statik bir sunucuda çalışıyor. Tarayıcınız, şifreli olan HTTPS adresi üzerinden şifresiz <code>http://</code> (HTTP) akış kaynaklarını yüklemeyi ve CORS engeli olan TV yayınlarını oynamayı güvenlik nedeniyle durdurur. Bunu aşmak için:
-                </p>
-                
-                <div className="space-y-2 text-[10.5px]">
-                  {/* Cozum 1 */}
-                  <div className="bg-black/40 p-2.5 rounded-xl border border-white/5">
-                    <span className="text-orange-400 font-bold block mb-1">💡 Çözüm 1: Tarayıcı Kilidini Açın (Kesin Çözüm)</span>
-                    <span className="text-white/50 leading-relaxed block text-[9.5px]">
-                      Adres çubuğundaki kilit simgesine (veya solundaki site ayarlarına) tıklayın ➜ <strong>Ekran Ayarları/Site Ayarları</strong> ➜ <strong>Güvenli olmayan içerik</strong> (Insecure content) seçeneğini <strong>İzin Ver</strong> (Allow) yapın ve sayfayı yenileyin. Bu sayede tüm HTTP yayınları anında oynatılacaktır!
-                    </span>
-                  </div>
-
-                  {/* Cozum 2 */}
-                  <div className="bg-black/40 p-2.5 rounded-xl border border-white/5 flex flex-col justify-between sm:flex-row sm:items-center gap-2">
-                    <div className="flex-1">
-                      <span className="text-orange-400 font-bold block mb-1">🔗 Çözüm 2: Harici Oynatıcı Kullanın</span>
-                      <span className="text-white/50 block text-[9.5px] leading-normal">
-                        Bu yayını harici VLC Player veya PotPlayer uygulamasında gecikmesiz açabilirsiniz.
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleCopyUrl}
-                      className="px-3 py-1.5 rounded-lg text-[9px] font-bold bg-orange-600 hover:bg-orange-500 text-white shrink-0 flex items-center justify-center gap-1 transition-all self-end sm:self-center"
-                    >
-                      {copiedUrl ? (
-                        <>
-                          <Check className="h-3 w-3 text-green-300" />
-                          Kopyalandı!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3" />
-                          Linki Kopyala
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Cozum 3 */}
-                  <div className="bg-black/40 p-2.5 rounded-xl border border-white/5">
-                    <span className="text-orange-400 font-bold block mb-1">🛡️ Çözüm 3: Bulut Sunucu Önizlemesini Tercih Edin</span>
-                    <span className="text-white/50 block text-[9.5px]">
-                      Geliştirme bulut kiralık sunucumuz <strong>Güvenli Akış Proxy'si</strong> barındırır ve tüm CORS/HTTP engellerini otomatik bypass eder. Oradaki yayını kullanabilirsiniz.
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <p className="text-white/20 text-[9px] mt-3 italic shrink-0">
+            <p className="text-white/20 text-[10px] mt-2 italic">
               (Desteklenen formatlar: .m3u, .m3u8, .mp4, vb.)
             </p>
           </div>
